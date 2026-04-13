@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FileCombiner</title>
     <link rel="stylesheet" href="src/css/index.css">
-    <link rel="icon" href="logo.png" type="image/png">
+    <link rel="icon" href="/logo.png" type="image/png">
 </head>
 <body>
 <div class="container">
@@ -73,6 +73,20 @@
         </div>
         <div id="log">// готовий до роботи</div>
     </div>
+    <div class="format-group" id="format-group">
+        <label class="format-option">
+            <input type="radio" name="format" value="txt" checked>
+            <span>.txt</span>
+        </label>
+        <label class="format-option">
+            <input type="radio" name="format" value="docx">
+            <span>.docx</span>
+        </label>
+        <label class="format-option">
+            <input type="radio" name="format" value="pdf">
+            <span>.pdf</span>
+        </label>
+    </div>
     <div class="actions-bar">
         <button class="btn danger" onclick="clearAll()">очистити все</button>
         <button class="btn primary" id="go-btn" onclick="generate()">Зібрати в .txt</button>
@@ -89,7 +103,14 @@
         </div>
         <div class="modal-footer">
             <button class="btn" onclick="closeModal()">Закрити</button>
-            <button class="btn primary" onclick="copyModalContent()" style="flex:none">Копіювати текст</button>
+            <button
+                    class="btn primary"
+                    id="copy-modal-btn"
+                    onclick="copyModalContent()"
+                    style="flex:none"
+            >
+                Копіювати текст
+            </button>
         </div>
     </div>
 </div>
@@ -102,5 +123,7 @@
     </div>
 </footer>
 <script src="src/js/index.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://unpkg.com/docx@8.0.3/build/index.js"></script>
 </body>
 </html>

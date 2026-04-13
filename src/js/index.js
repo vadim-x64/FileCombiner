@@ -74,6 +74,13 @@ document.getElementById('gap').addEventListener('input', saveData);
 document.getElementById('outname').addEventListener('input', saveData);
 document.addEventListener('DOMContentLoaded', loadData);
 
+document.querySelectorAll('input[name="format"]').forEach(radio => {
+    radio.addEventListener('change', function () {
+        const btn = document.getElementById('go-btn');
+        btn.textContent = `Зібрати в .${this.value}`;
+    });
+});
+
 const words = [
     " file_combiner ",
     " merge your files ",
@@ -347,15 +354,48 @@ function closeModal(e) {
     }, 200);
 }
 
+let copyBtnTimeout = null;
+
 async function copyModalContent() {
     const text = document.getElementById('modal-content').value;
+    const copyBtn = document.getElementById('copy-modal-btn');
+
     try {
         await navigator.clipboard.writeText(text);
         log('// вміст файлу скопійовано в буфер обміну', 'ok');
-        closeModal();
+
+        if (copyBtn) {
+            clearTimeout(copyBtnTimeout);
+            copyBtn.disabled = true;
+            copyBtn.innerHTML = '✓ Скопійовано';
+
+            copyBtnTimeout = setTimeout(() => {
+                copyBtn.disabled = false;
+                copyBtn.textContent = 'Копіювати текст';
+            }, 1400);
+        }
     } catch (err) {
         log('// помилка копіювання в буфер', 'err');
     }
+}
+
+function buildDocxParagraphs(text) {
+    const lines = text.replace(/\t/g, '    ').split('\n');
+
+    return lines.map(line => new window.docx.Paragraph({
+        spacing: {
+            before: 0,
+            after: 0,
+            line: 240
+        },
+        children: [
+            new window.docx.TextRun({
+                text: line.length ? line : ' ',
+                font: 'Courier New',
+                size: 20
+            })
+        ]
+    }));
 }
 
 async function generate() {
@@ -371,7 +411,12 @@ async function generate() {
 
     const sepTpl = document.getElementById('sep').value;
     const gap = '\n'.repeat(Math.max(1, parseInt(document.getElementById('gap').value) || 2));
-    const outname = document.getElementById('outname').value || 'combined.txt';
+    const format = document.querySelector('input[name="format"]:checked').value;
+    let outname = document.getElementById('outname').value || `combined.${format}`;
+
+    if (!outname.endsWith(`.${format}`)) {
+        outname = outname.replace(/\.\w+$/, '') + `.${format}`;
+    }
 
     try {
         const parts = [];
@@ -393,15 +438,29 @@ async function generate() {
 
         prog.style.width = '100%';
         const result = parts.join(gap);
-        const blob = new Blob([result], {type: 'text/plain;charset=utf-8'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = outname;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+
+        if (format === 'txt') {
+            const blob = new Blob([result], {type: 'text/plain;charset=utf-8'});
+            downloadBlob(blob, outname);
+        }
+        else if (format === 'pdf') {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const lines = doc.splitTextToSize(result, 180);
+            doc.text(lines, 10, 10);
+            doc.save(outname);
+        }
+        else if (format === 'docx') {
+            const doc = new window.docx.Document({
+                sections: [{
+                    properties: {},
+                    children: buildDocxParagraphs(result)
+                }]
+            });
+
+            const blob = await window.docx.Packer.toBlob(doc);
+            downloadBlob(blob, outname);
+        }
 
         const [sz, unit] = fmtSize(new Blob([result]).size);
         log(`// готово! ${files.length} файлів → ${outname} (${sz} ${unit})`, 'ok');
@@ -413,4 +472,15 @@ async function generate() {
     setTimeout(() => {
         prog.style.width = '0%';
     }, 2000);
+}
+
+function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
