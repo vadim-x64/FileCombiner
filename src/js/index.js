@@ -34,6 +34,50 @@ const EXT_COLORS = {
 
 const DEFAULT_EXT_COLOR = {bg: '#1a1a2a', color: '#8888cc'};
 
+// --- СИСТЕМА ЗБЕРЕЖЕННЯ (PERSISTENCE) ---
+function loadData() {
+    try {
+        const settings = JSON.parse(localStorage.getItem('fc_settings'));
+        if (settings) {
+            document.getElementById('sep').value = settings.sep !== undefined ? settings.sep : "// ===== {filename} =====";
+            document.getElementById('gap').value = settings.gap !== undefined ? settings.gap : "2";
+            document.getElementById('outname').value = settings.outname !== undefined ? settings.outname : "combined.txt";
+        }
+
+        const savedFiles = JSON.parse(localStorage.getItem('fc_files'));
+        if (savedFiles && Array.isArray(savedFiles)) {
+            files = savedFiles;
+            render();
+            if(files.length > 0) log(`// відновлено ${files.length} файл(ів) з попередньої сесії`, 'ok');
+        }
+    } catch(e) {
+        console.warn("Помилка завантаження даних", e);
+    }
+}
+
+function saveData() {
+    const settings = {
+        sep: document.getElementById('sep').value,
+        gap: document.getElementById('gap').value,
+        outname: document.getElementById('outname').value
+    };
+    try {
+        localStorage.setItem('fc_settings', JSON.stringify(settings));
+        localStorage.setItem('fc_files', JSON.stringify(files));
+    } catch(e) {
+        // Якщо файли занадто великі для localStorage
+        console.warn("Не вдалося зберегти файли в localStorage", e);
+        log('// Увага: об\'єм файлів завеликий для збереження між сесіями!', 'warn');
+    }
+}
+
+// Додаємо слухачі для налаштувань, щоб зберігати їх при зміні
+document.getElementById('sep').addEventListener('input', saveData);
+document.getElementById('gap').addEventListener('input', saveData);
+document.getElementById('outname').addEventListener('input', saveData);
+document.addEventListener('DOMContentLoaded', loadData);
+// -----------------------------------------
+
 function extColor(name) {
     const e = getExt(name);
     return EXT_COLORS[e] || DEFAULT_EXT_COLOR;
@@ -49,25 +93,61 @@ dropZone.addEventListener('dragover', e => {
 
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
 
-dropZone.addEventListener('drop', e => {
+dropZone.addEventListener('drop', async e => {
     e.preventDefault();
     dropZone.classList.remove('over');
-    addFiles([...e.dataTransfer.files]);
+    await processNewFiles([...e.dataTransfer.files]);
 });
 
-fileInput.addEventListener('change', () => {
-    addFiles([...fileInput.files]);
+fileInput.addEventListener('change', async () => {
+    await processNewFiles([...fileInput.files]);
     fileInput.value = '';
 });
 
-document.addEventListener('paste', e => {
+// Обробка Ctrl+V (файли та текст)
+document.addEventListener('paste', async e => {
+    // Якщо в буфері є файли
     if (e.clipboardData && e.clipboardData.files.length > 0) {
         e.preventDefault();
-        addFiles([...e.clipboardData.files]);
+        await processNewFiles([...e.clipboardData.files]);
+    }
+    // Якщо в буфері є просто текст
+    else if (e.clipboardData) {
+        const text = e.clipboardData.getData('text');
+        if (text && text.trim().length > 0) {
+            e.preventDefault();
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+            const newFile = {
+                name: `clipboard_${timeStr}.txt`,
+                size: new Blob([text]).size,
+                content: text
+            };
+            addProcessedFiles([newFile]);
+        }
     }
 });
 
-function addFiles(newFiles) {
+// Функція для читання файлів у пам'ять перед додаванням
+async function processNewFiles(rawFiles) {
+    log('// читаємо файли...', '');
+    const processed = [];
+    for (const f of rawFiles) {
+        try {
+            const text = await f.text();
+            processed.push({
+                name: f.name,
+                size: f.size,
+                content: text
+            });
+        } catch(e) {
+            console.error("Помилка читання файлу:", f.name);
+        }
+    }
+    addProcessedFiles(processed);
+}
+
+function addProcessedFiles(newFiles) {
     const dupes = [];
     const added = [];
     newFiles.forEach(f => {
@@ -79,6 +159,8 @@ function addFiles(newFiles) {
         }
     });
     render();
+    saveData();
+
     if (dupes.length && added.length) {
         log(`// додано ${added.length} файл(ів). Вже існують (пропущено): ${dupes.join(', ')}`, 'warn');
     } else if (dupes.length && !added.length) {
@@ -91,17 +173,20 @@ function addFiles(newFiles) {
 function removeFile(i) {
     files.splice(i, 1);
     render();
+    saveData();
 }
 
 function clearAll() {
     files = [];
     render();
+    saveData();
     log('// список очищено', '');
 }
 
 function sortFiles() {
     files.sort((a, b) => a.name.localeCompare(b.name));
     render();
+    saveData();
 }
 
 function getExt(name) {
@@ -192,6 +277,7 @@ function render() {
             files.splice(to, 0, item);
             dragSrcIdx = null;
             render();
+            saveData();
         });
 
         row.addEventListener('dblclick', function () {
@@ -214,21 +300,16 @@ function render() {
     });
 }
 
-async function openModal(index) {
+function openModal(index) {
     const file = files[index];
     const modal = document.getElementById('file-modal');
     const contentArea = document.getElementById('modal-content');
 
     document.getElementById('modal-title').textContent = file.name;
-    contentArea.value = "Завантаження...";
+    // Оскільки ми вже зберегли вміст файлу під час завантаження,
+    // просто виводимо його
+    contentArea.value = file.content;
     modal.classList.add('active');
-
-    try {
-        const text = await file.text();
-        contentArea.value = text;
-    } catch (e) {
-        contentArea.value = "Помилка читання файлу: " + e.message;
-    }
 }
 
 function closeModal(e) {
@@ -258,7 +339,7 @@ async function generate() {
     const btn = document.getElementById('go-btn');
     const prog = document.getElementById('prog');
     btn.disabled = true;
-    log('// читаємо файли…', '');
+    log('// збираємо файли…', '');
 
     const sepTpl = document.getElementById('sep').value;
     const gap = '\n'.repeat(Math.max(1, parseInt(document.getElementById('gap').value) || 2));
@@ -269,14 +350,19 @@ async function generate() {
         for (let i = 0; i < files.length; i++) {
             const f = files[i];
             prog.style.width = ((i / files.length) * 100) + '%';
-            const text = await f.text();
+
+            // Вміст вже прочитано, беремо напряму
+            const text = f.content;
+
             const sep = sepTpl
                 .replace(/{filename}/g, f.name)
                 .replace(/{index}/g, String(i + 1))
                 .replace(/{ext}/g, getExt(f.name));
             parts.push(sep + '\n\n' + text);
             log(`// обробка: ${f.name} (${i + 1}/${files.length})`, '');
-            await new Promise(r => setTimeout(r, 0));
+
+            // Штучна затримка для плавного прогрес-бару
+            await new Promise(r => setTimeout(r, 10));
         }
 
         prog.style.width = '100%';
