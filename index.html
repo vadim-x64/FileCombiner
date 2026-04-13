@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FileCombiner</title>
+    <link rel="stylesheet" href="src/css/index.css">
+    <link rel="icon" href="logo.png" type="image/png">
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>file_combiner</h1>
+        <span>// no file limit</span>
+    </header>
+    <div id="drop-zone">
+        <input type="file" id="file-input" multiple>
+        <div class="icon">[ + ]</div>
+        <p>Перетягни файли, клікни або натисни CTRL+V</p>
+        <small>.js .ts .py .html .css .json .txt .vue .jsx .tsx .go .rs .php та будь-які інші текстові файли</small>
+    </div>
+    <div class="stats-row" id="stats-row" style="display:none">
+        <div class="stat">
+            <div class="stat-lbl">Файлів</div>
+            <div class="stat-val" id="s-count">0</div>
+        </div>
+        <div class="stat">
+            <div class="stat-lbl">Розмір</div>
+            <div class="stat-val" id="s-size">0</div>
+            <div class="stat-sub" id="s-size-u">KB</div>
+        </div>
+        <div class="stat">
+            <div class="stat-lbl">Розширень</div>
+            <div class="stat-val" id="s-exts">0</div>
+        </div>
+    </div>
+    <div class="panel" id="files-panel" style="display:none">
+        <div class="panel-header">
+            <span>Черга файлів (подвійний клік для перегляду)</span>
+            <div class="actions">
+                <button class="btn" onclick="sortFiles()">сортувати A→Z</button>
+                <button class="btn danger" onclick="clearAll()">очистити</button>
+            </div>
+        </div>
+        <div id="file-list">
+            <div class="empty-msg">// файли ще не додано</div>
+        </div>
+    </div>
+    <div class="panel">
+        <div class="section-title">Налаштування</div>
+        <div class="section-body settings">
+            <div class="setting-row">
+                <label>Роздільник:</label>
+                <input type="text" id="sep" value="// ===== {filename} =====">
+            </div>
+            <div class="setting-row">
+                <label></label>
+                <span class="hint">{filename} = назва файлу &nbsp;|&nbsp; {index} = порядковий номер &nbsp;|&nbsp; {ext} = розширення</span>
+            </div>
+            <div class="setting-row">
+                <label>Порожні рядки між файлами:</label>
+                <input type="text" id="gap" value="2" style="width:60px">
+            </div>
+            <div class="setting-row">
+                <label>Ім'я результату:</label>
+                <input type="text" id="outname" value="combined.txt">
+            </div>
+        </div>
+    </div>
+    <div class="panel">
+        <div class="progress-bar">
+            <div class="progress-fill" id="prog"></div>
+        </div>
+        <div id="log">// готовий до роботи</div>
+    </div>
+    <div class="actions-bar">
+        <button class="btn danger" onclick="clearAll()">очистити все</button>
+        <button class="btn primary" id="go-btn" onclick="generate()">▶ Зібрати в .txt</button>
+    </div>
+</div>
+<div class="modal-overlay" id="file-modal" onclick="closeModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <div class="modal-title" id="modal-title">filename.txt</div>
+            <button class="rm" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <textarea id="modal-content" readonly></textarea>
+        </div>
+        <div class="modal-footer">
+            <button class="btn" onclick="closeModal()">Закрити</button>
+            <button class="btn primary" onclick="copyModalContent()" style="flex:none">Копіювати текст</button>
+        </div>
+    </div>
+</div>
+<script src="src/js/index.js"></script>
+</body>
+</html>
