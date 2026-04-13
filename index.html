@@ -10,8 +10,8 @@
 <body>
 <div class="container">
     <header>
-        <h1>file_combiner</h1>
-        <span>// no file limit</span>
+        <h1><span id="typing-title"></span><span class="cursor">|</span></h1>
+        <span>// без обмеження файлів</span>
     </header>
     <div id="drop-zone">
         <input type="file" id="file-input" multiple>
@@ -75,7 +75,7 @@
     </div>
     <div class="actions-bar">
         <button class="btn danger" onclick="clearAll()">очистити все</button>
-        <button class="btn primary" id="go-btn" onclick="generate()">▶ Зібрати в .txt</button>
+        <button class="btn primary" id="go-btn" onclick="generate()">Зібрати в .txt</button>
     </div>
 </div>
 <div class="modal-overlay" id="file-modal" onclick="closeModal(event)">
@@ -93,6 +93,14 @@
         </div>
     </div>
 </div>
+<footer class="footer">
+    <div class="footer-content">
+        <img src="logo.png" alt="logo" class="footer-logo">
+        <span class="footer-text">
+            © 2026 FileCombiner - прості речі стають зручними
+        </span>
+    </div>
+</footer>
 <script src="src/js/index.js"></script>
 </body>
 </html>

@@ -34,7 +34,6 @@ const EXT_COLORS = {
 
 const DEFAULT_EXT_COLOR = {bg: '#1a1a2a', color: '#8888cc'};
 
-// --- СИСТЕМА ЗБЕРЕЖЕННЯ (PERSISTENCE) ---
 function loadData() {
     try {
         const settings = JSON.parse(localStorage.getItem('fc_settings'));
@@ -65,18 +64,53 @@ function saveData() {
         localStorage.setItem('fc_settings', JSON.stringify(settings));
         localStorage.setItem('fc_files', JSON.stringify(files));
     } catch(e) {
-        // Якщо файли занадто великі для localStorage
         console.warn("Не вдалося зберегти файли в localStorage", e);
         log('// Увага: об\'єм файлів завеликий для збереження між сесіями!', 'warn');
     }
 }
 
-// Додаємо слухачі для налаштувань, щоб зберігати їх при зміні
 document.getElementById('sep').addEventListener('input', saveData);
 document.getElementById('gap').addEventListener('input', saveData);
 document.getElementById('outname').addEventListener('input', saveData);
 document.addEventListener('DOMContentLoaded', loadData);
-// -----------------------------------------
+
+const words = [
+    " file_combiner ",
+    " merge your files ",
+    " no limits "
+];
+
+let wordIndex = 0;
+let charIndex = 0;
+let isDeleting = false;
+
+function typeEffect() {
+    const el = document.getElementById("typing-title");
+    const currentWord = words[wordIndex];
+
+    if (!isDeleting) {
+        el.textContent = currentWord.substring(0, charIndex++);
+    } else {
+        el.textContent = currentWord.substring(0, charIndex--);
+    }
+
+    let speed = isDeleting ? 50 : 100;
+
+    if (!isDeleting && charIndex === currentWord.length) {
+        speed = 1500;
+        isDeleting = true;
+    } else if (isDeleting && charIndex === 0) {
+        isDeleting = false;
+        wordIndex = (wordIndex + 1) % words.length;
+        speed = 100;
+    }
+
+    setTimeout(typeEffect, speed);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    typeEffect();
+});
 
 function extColor(name) {
     const e = getExt(name);
@@ -104,14 +138,11 @@ fileInput.addEventListener('change', async () => {
     fileInput.value = '';
 });
 
-// Обробка Ctrl+V (файли та текст)
 document.addEventListener('paste', async e => {
-    // Якщо в буфері є файли
     if (e.clipboardData && e.clipboardData.files.length > 0) {
         e.preventDefault();
         await processNewFiles([...e.clipboardData.files]);
     }
-    // Якщо в буфері є просто текст
     else if (e.clipboardData) {
         const text = e.clipboardData.getData('text');
         if (text && text.trim().length > 0) {
@@ -128,7 +159,6 @@ document.addEventListener('paste', async e => {
     }
 });
 
-// Функція для читання файлів у пам'ять перед додаванням
 async function processNewFiles(rawFiles) {
     log('// читаємо файли...', '');
     const processed = [];
@@ -306,8 +336,6 @@ function openModal(index) {
     const contentArea = document.getElementById('modal-content');
 
     document.getElementById('modal-title').textContent = file.name;
-    // Оскільки ми вже зберегли вміст файлу під час завантаження,
-    // просто виводимо його
     contentArea.value = file.content;
     modal.classList.add('active');
 }
@@ -351,7 +379,6 @@ async function generate() {
             const f = files[i];
             prog.style.width = ((i / files.length) * 100) + '%';
 
-            // Вміст вже прочитано, беремо напряму
             const text = f.content;
 
             const sep = sepTpl
@@ -361,7 +388,6 @@ async function generate() {
             parts.push(sep + '\n\n' + text);
             log(`// обробка: ${f.name} (${i + 1}/${files.length})`, '');
 
-            // Штучна затримка для плавного прогрес-бару
             await new Promise(r => setTimeout(r, 10));
         }
 
