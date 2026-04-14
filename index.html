@@ -11,13 +11,12 @@
 <div class="container">
     <header>
         <h1><span id="typing-title"></span><span class="cursor">|</span></h1>
-        <span>// без обмеження файлів</span>
     </header>
     <div id="drop-zone">
         <input type="file" id="file-input" multiple>
         <div class="icon">[ + ]</div>
-        <p>Перетягни файли, клікни або натисни CTRL+V</p>
-        <small>.js .ts .py .html .css .json .txt .vue .jsx .tsx .go .rs .php та будь-які інші текстові файли</small>
+        <p>Натисніть або перетягніть файли</p>
+        <small>.js .ts .py .html .css .json .txt .vue .jsx .tsx .go .rs .php та будь-які інші текстові документи</small>
     </div>
     <div class="stats-row" id="stats-row" style="display:none">
         <div class="stat">
@@ -36,7 +35,7 @@
     </div>
     <div class="panel" id="files-panel" style="display:none">
         <div class="panel-header">
-            <span>Черга файлів (подвійний клік для перегляду)</span>
+            <span>Черга файлів</span>
             <div class="actions">
                 <button class="btn" onclick="sortFiles()">сортувати A→Z</button>
                 <button class="btn danger" onclick="clearAll()">очистити</button>
