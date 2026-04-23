@@ -47,9 +47,9 @@ function loadData() {
         if (savedFiles && Array.isArray(savedFiles)) {
             files = savedFiles;
             render();
-            if(files.length > 0) log(`// відновлено ${files.length} файл(ів) з попередньої сесії`, 'ok');
+            if (files.length > 0) log(`// відновлено ${files.length} файл(ів) з попередньої сесії`, 'ok');
         }
-    } catch(e) {
+    } catch (e) {
         console.warn("Помилка завантаження даних", e);
     }
 }
@@ -63,7 +63,7 @@ function saveData() {
     try {
         localStorage.setItem('fc_settings', JSON.stringify(settings));
         localStorage.setItem('fc_files', JSON.stringify(files));
-    } catch(e) {
+    } catch (e) {
         console.warn("Не вдалося зберегти файли в localStorage", e);
         log('// Увага: об\'єм файлів завеликий для збереження між сесіями!', 'warn');
     }
@@ -149,8 +149,7 @@ document.addEventListener('paste', async e => {
     if (e.clipboardData && e.clipboardData.files.length > 0) {
         e.preventDefault();
         await processNewFiles([...e.clipboardData.files]);
-    }
-    else if (e.clipboardData) {
+    } else if (e.clipboardData) {
         const text = e.clipboardData.getData('text');
         if (text && text.trim().length > 0) {
             e.preventDefault();
@@ -177,7 +176,7 @@ async function processNewFiles(rawFiles) {
                 size: f.size,
                 content: text
             });
-        } catch(e) {
+        } catch (e) {
             console.error("Помилка читання файлу:", f.name);
         }
     }
@@ -187,9 +186,16 @@ async function processNewFiles(rawFiles) {
 function addProcessedFiles(newFiles) {
     const dupes = [];
     const added = [];
+    const updated = [];
     newFiles.forEach(f => {
-        if (files.find(x => x.name === f.name && x.size === f.size)) {
-            dupes.push(f.name);
+        const existingIdx = files.findIndex(x => x.name === f.name);
+        if (existingIdx !== -1) {
+            if (files[existingIdx].content === f.content) {
+                dupes.push(f.name);
+            } else {
+                files[existingIdx] = f;
+                updated.push(f.name);
+            }
         } else {
             files.push(f);
             added.push(f.name);
@@ -198,12 +204,15 @@ function addProcessedFiles(newFiles) {
     render();
     saveData();
 
-    if (dupes.length && added.length) {
-        log(`// додано ${added.length} файл(ів). Вже існують (пропущено): ${dupes.join(', ')}`, 'warn');
-    } else if (dupes.length && !added.length) {
-        log(`// помилка: всі ці файли вже додано — ${dupes.join(', ')}`, 'err');
+    const parts = [];
+    if (added.length) parts.push(`додано ${added.length} файл(ів)`);
+    if (updated.length) parts.push(`оновлено ${updated.length} файл(ів): ${updated.join(', ')}`);
+    if (dupes.length) parts.push(`без змін (пропущено): ${dupes.join(', ')}`);
+
+    if (updated.length || added.length) {
+        log(`// ${parts.join(' | ')}. Всього: ${files.length}`, updated.length ? 'warn' : 'ok');
     } else {
-        log(`// додано ${added.length} файл(ів). Всього: ${files.length}`, 'ok');
+        log(`// помилка: всі ці файли вже актуальні — ${dupes.join(', ')}`, 'err');
     }
 }
 
@@ -442,15 +451,13 @@ async function generate() {
         if (format === 'txt') {
             const blob = new Blob([result], {type: 'text/plain;charset=utf-8'});
             downloadBlob(blob, outname);
-        }
-        else if (format === 'pdf') {
-            const { jsPDF } = window.jspdf;
+        } else if (format === 'pdf') {
+            const {jsPDF} = window.jspdf;
             const doc = new jsPDF();
             const lines = doc.splitTextToSize(result, 180);
             doc.text(lines, 10, 10);
             doc.save(outname);
-        }
-        else if (format === 'docx') {
+        } else if (format === 'docx') {
             const doc = new window.docx.Document({
                 sections: [{
                     properties: {},
