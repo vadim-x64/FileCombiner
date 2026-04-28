@@ -1,6 +1,29 @@
 let files = [];
 let dragSrcIdx = null;
 
+async function readEntry(entry, fileList) {
+    if (entry.isFile) {
+        return new Promise((resolve) => {
+            entry.file((file) => {
+                fileList.push(file);
+                resolve();
+            }, () => resolve());
+        });
+    } else if (entry.isDirectory) {
+        const reader = entry.createReader();
+        return new Promise((resolve) => {
+            const readAll = () => {
+                reader.readEntries(async (entries) => {
+                    if (entries.length === 0) { resolve(); return; }
+                    await Promise.all(entries.map(e => readEntry(e, fileList)));
+                    readAll();
+                }, () => resolve());
+            };
+            readAll();
+        });
+    }
+}
+
 const EXT_COLORS = {
     '.js': {bg: '#3b3200', color: '#f0c000'},
     '.jsx': {bg: '#3b3200', color: '#f0c000'},
@@ -130,12 +153,30 @@ dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
 dropZone.addEventListener('drop', async e => {
     e.preventDefault();
     dropZone.classList.remove('over');
-    await processNewFiles([...e.dataTransfer.files]);
+    const items = e.dataTransfer.items;
+    if (items && items.length > 0 && items[0].webkitGetAsEntry) {
+        const allFiles = [];
+        const promises = [];
+        for (const item of items) {
+            const entry = item.webkitGetAsEntry();
+            if (entry) promises.push(readEntry(entry, allFiles));
+        }
+        await Promise.all(promises);
+        await processNewFiles(allFiles);
+    } else {
+        await processNewFiles([...e.dataTransfer.files]);
+    }
 });
 
 fileInput.addEventListener('change', async () => {
     await processNewFiles([...fileInput.files]);
     fileInput.value = '';
+});
+
+const folderInput = document.getElementById('folder-input');
+folderInput.addEventListener('change', async () => {
+    await processNewFiles([...folderInput.files]);
+    folderInput.value = '';
 });
 
 document.addEventListener('paste', async e => {
@@ -161,7 +202,7 @@ document.addEventListener('paste', async e => {
 async function processNewFiles(rawFiles) {
     log('// читаємо файли...', '');
     const processed = [];
-    // СТАЛО
+
     const BINARY_EXTS = [
         '.docx', '.doc', '.xlsx', '.xls', '.pptx', '.ppt',
         '.pdf', '.zip', '.rar', '.7z', '.tar', '.gz',

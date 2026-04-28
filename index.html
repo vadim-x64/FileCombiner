@@ -14,9 +14,17 @@
     </header>
     <div id="drop-zone">
         <input type="file" id="file-input" multiple>
+        <input type="file" id="folder-input" webkitdirectory style="display:none">
         <div class="icon">[ + ]</div>
-        <p>Натисніть або перетягніть файли</p>
-        <small>.js .ts .py .html .css .json .txt .vue .jsx .tsx .go .rs .php та будь-які інші текстові документи</small>
+        <p>Натисніть або перетягніть файли / папку</p>
+        <small>.js .ts .py .html .css .json .txt .vue та будь-які інші текстові документи</small>
+        <div style="margin-top:12px">
+            <button class="btn" id="open-folder-btn" type="button"
+                    onclick="event.stopPropagation(); document.getElementById('folder-input').click()"
+                    style="font-size:12px; padding:6px 14px;">
+                відкрити папку
+            </button>
+        </div>
     </div>
     <div class="stats-row" id="stats-row" style="display:none">
         <div class="stat">
