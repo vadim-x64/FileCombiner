@@ -14,7 +14,10 @@ async function readEntry(entry, fileList) {
         return new Promise((resolve) => {
             const readAll = () => {
                 reader.readEntries(async (entries) => {
-                    if (entries.length === 0) { resolve(); return; }
+                    if (entries.length === 0) {
+                        resolve();
+                        return;
+                    }
                     await Promise.all(entries.map(e => readEntry(e, fileList)));
                     readAll();
                 }, () => resolve());
@@ -90,6 +93,37 @@ function saveData() {
         console.warn("Не вдалося зберегти файли в localStorage", e);
         log('// Увага: об\'єм файлів завеликий для збереження між сесіями!', 'warn');
     }
+}
+
+let resetConfirmTimeout = null;
+
+function resetToFactory(btn) {
+    if (btn.dataset.confirm !== 'true') {
+        btn.dataset.confirm = 'true';
+        const originalText = btn.innerText;
+        btn.innerText = 'Впевнені? (Натисніть ще раз)';
+        resetConfirmTimeout = setTimeout(() => {
+            btn.dataset.confirm = 'false';
+            btn.innerText = originalText;
+        }, 3000);
+        return;
+    }
+
+    clearTimeout(resetConfirmTimeout);
+    btn.dataset.confirm = 'false';
+    btn.innerText = 'Скинути до заводських';
+
+    localStorage.removeItem('fc_settings');
+    localStorage.removeItem('fc_files');
+
+    files = [];
+
+    document.getElementById('sep').value = "// ===== {filename} =====";
+    document.getElementById('gap').value = "2";
+    document.getElementById('outname').value = "combined.txt";
+
+    render();
+    log('// всі налаштування та файли скинуто до заводських!', 'ok');
 }
 
 document.getElementById('sep').addEventListener('input', saveData);
@@ -218,7 +252,7 @@ async function processNewFiles(rawFiles) {
         }
         try {
             const text = await f.text();
-            processed.push({ name: f.name, size: f.size, content: text });
+            processed.push({name: f.name, size: f.size, content: text});
         } catch (e) {
             console.error("Помилка читання файлу:", f.name);
         }
@@ -472,7 +506,7 @@ async function generate() {
         prog.style.width = '100%';
         const result = parts.join(gap);
 
-        const blob = new Blob([result], { type: 'text/plain;charset=utf-8' });
+        const blob = new Blob([result], {type: 'text/plain;charset=utf-8'});
         downloadBlob(blob, outname);
 
         const [sz, unit] = fmtSize(new Blob([result]).size);
