@@ -46,7 +46,7 @@
             <span>Черга файлів</span>
             <div class="actions">
                 <button class="btn" onclick="sortFiles()">сортувати A→Z</button>
-                <button class="btn danger" onclick="clearAll()">очистити</button>
+                <button class="btn danger" onclick="clearAll(this)">очистити</button>
             </div>
         </div>
         <div id="file-list">
@@ -91,7 +91,7 @@
         </label>
     </div>
     <div class="actions-bar">
-        <button class="btn danger" onclick="clearAll()">очистити все</button>
+        <button class="btn danger" onclick="clearAll(this)">очистити все</button>
         <button class="btn primary" id="go-btn" onclick="generate()">Зібрати в .txt</button>
     </div>
 </div>
@@ -125,10 +125,8 @@
         </span>
     </div>
 </footer>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-
 <script src="src/js/index.js"></script>
 </body>
 </html>

@@ -261,7 +261,6 @@ async function extractPdfText(file) {
     return fullText.trim();
 }
 
-// Функція для витягування тексту з DOCX
 async function extractDocxText(file) {
     if (!window.mammoth) throw new Error("Бібліотека Mammoth.js не завантажена");
     const arrayBuffer = await file.arrayBuffer();
@@ -273,8 +272,6 @@ async function processNewFiles(rawFiles) {
     log('// читаємо файли...', '');
     const processed = [];
 
-    // Зверни увагу: .doc повернуто сюди, бо старий ворд нормально парсити без бекенду - це біль.
-    // Зате .docx та .pdf тепер працюють.
     const BINARY_EXTS = [
         '.doc', '.xlsx', '.xls', '.pptx', '.ppt',
         '.zip', '.rar', '.7z', '.tar', '.gz',
@@ -347,13 +344,51 @@ function addProcessedFiles(newFiles) {
     }
 }
 
-function removeFile(i) {
+function removeFile(i, btn) {
+    if (btn && btn.dataset.confirm !== 'true') {
+        btn.dataset.confirm = 'true';
+        btn.dataset.origText = btn.innerText;
+        btn.innerText = 'Впевнені?';
+        btn.style.color = 'var(--danger)';
+        btn.style.background = 'var(--danger-bg)';
+
+        btn.clearTimeoutId = setTimeout(() => {
+            if (btn && btn.parentElement) {
+                btn.dataset.confirm = 'false';
+                btn.innerText = btn.dataset.origText;
+                btn.style.color = '';
+                btn.style.background = '';
+            }
+        }, 3000);
+        return;
+    }
+
     files.splice(i, 1);
     render();
     saveData();
 }
 
-function clearAll() {
+function clearAll(btn) {
+    if (btn && btn.dataset.confirm !== 'true') {
+        btn.dataset.confirm = 'true';
+        btn.dataset.origText = btn.innerText;
+        btn.innerText = 'Впевнені?';
+
+        btn.clearTimeoutId = setTimeout(() => {
+            if (btn) {
+                btn.dataset.confirm = 'false';
+                btn.innerText = btn.dataset.origText;
+            }
+        }, 3000);
+        return;
+    }
+
+    if (btn) {
+        clearTimeout(btn.clearTimeoutId);
+        btn.dataset.confirm = 'false';
+        btn.innerText = btn.dataset.origText;
+    }
+
     files = [];
     render();
     saveData();
@@ -422,7 +457,7 @@ function render() {
       <span class="ext" style="background:${ec.bg};color:${ec.color}">${e}</span>
       <span class="fname">${f.name}</span>
       <span class="fsize">${sz} ${unit}</span>
-      <button class="rm" onclick="event.stopPropagation(); removeFile(${i})">✕</button>
+      <button class="rm" onclick="event.stopPropagation(); removeFile(${i}, this)">✕</button>
     `;
 
         row.addEventListener('dragstart', function (ev) {
@@ -597,7 +632,7 @@ async function downloadBlob(blob, filename) {
                 suggestedName: filename,
                 types: [{
                     description: 'Text Document',
-                    accept: { 'text/plain': ['.txt'] },
+                    accept: {'text/plain': ['.txt']},
                 }],
             });
             const writable = await handle.createWritable();

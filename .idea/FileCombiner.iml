@@ -6,5 +6,7 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="jspdf" level="application" />
     <orderEntry type="library" name="docx" level="application" />
+    <orderEntry type="library" name="pdf.js" level="application" />
+    <orderEntry type="library" name="mammoth" level="application" />
   </component>
 </module>
