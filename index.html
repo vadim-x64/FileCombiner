@@ -17,7 +17,7 @@
         <input type="file" id="folder-input" webkitdirectory style="display:none">
         <div class="icon">[ + ]</div>
         <p>Натисніть або перетягніть файли / папку</p>
-        <small>.js .ts .py .html .css .json .txt .vue та будь-які інші текстові документи</small>
+        <small>.js .ts .py .html .css .json .txt .vue, а також .docx та .pdf</small>
         <div style="margin-top:12px">
             <button class="btn" id="open-folder-btn" type="button"
                     onclick="event.stopPropagation(); document.getElementById('folder-input').click()"
@@ -72,7 +72,6 @@
                 <label>Ім'я результату:</label>
                 <input type="text" id="outname" value="combined.txt">
             </div>
-            <!-- Нова кнопка скидання налаштувань -->
             <div class="setting-row">
                 <label>Скидання:</label>
                 <button class="btn danger" onclick="resetToFactory(this)" style="font-size: 12px; padding: 7px 10px;">Скинути до заводських</button>
@@ -103,7 +102,7 @@
             <button class="rm" onclick="closeModal()">✕</button>
         </div>
         <div class="modal-body">
-            <textarea id="modal-content" readonly></textarea>
+            <textarea id="modal-content"></textarea>
         </div>
         <div class="modal-footer">
             <button class="btn" onclick="closeModal()">Закрити</button>
@@ -126,6 +125,10 @@
         </span>
     </div>
 </footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+
 <script src="src/js/index.js"></script>
 </body>
 </html>

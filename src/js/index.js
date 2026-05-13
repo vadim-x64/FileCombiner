@@ -56,6 +56,8 @@ const EXT_COLORS = {
     '.sh': {bg: '#002800', color: '#60d060'},
     '.sql': {bg: '#002233', color: '#00bcd4'},
     '.txt': {bg: '#1a1a1a', color: '#888888'},
+    '.docx': {bg: '#002040', color: '#4488ff'},
+    '.pdf': {bg: '#3d0010', color: '#ff4444'},
 };
 
 const DEFAULT_EXT_COLOR = {bg: '#1a1a2a', color: '#8888cc'};
@@ -177,17 +179,22 @@ function extColor(name) {
 const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
 
-dropZone.addEventListener('dragover', e => {
+document.addEventListener('dragover', e => {
     e.preventDefault();
     dropZone.classList.add('over');
 });
 
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
+document.addEventListener('dragleave', e => {
+    e.preventDefault();
+    if (e.relatedTarget === null || e.relatedTarget.nodeName === 'HTML') {
+        dropZone.classList.remove('over');
+    }
+});
 
-dropZone.addEventListener('drop', async e => {
+document.addEventListener('drop', async e => {
     e.preventDefault();
     dropZone.classList.remove('over');
-    const items = e.dataTransfer.items;
+    const items = e.dataTransfer?.items;
     if (items && items.length > 0 && items[0].webkitGetAsEntry) {
         const allFiles = [];
         const promises = [];
@@ -197,7 +204,7 @@ dropZone.addEventListener('drop', async e => {
         }
         await Promise.all(promises);
         await processNewFiles(allFiles);
-    } else {
+    } else if (e.dataTransfer?.files) {
         await processNewFiles([...e.dataTransfer.files]);
     }
 });
@@ -233,31 +240,78 @@ document.addEventListener('paste', async e => {
     }
 });
 
+// Функція для витягування тексту з PDF
+async function extractPdfText(file) {
+    if (!window.pdfjsLib) throw new Error("Бібліотека PDF.js не завантажена");
+    const pdfjsLib = window.pdfjsLib;
+    if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+    let fullText = '';
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map(item => item.str).join(' ');
+        fullText += pageText + '\n\n';
+    }
+    return fullText.trim();
+}
+
+// Функція для витягування тексту з DOCX
+async function extractDocxText(file) {
+    if (!window.mammoth) throw new Error("Бібліотека Mammoth.js не завантажена");
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({arrayBuffer: arrayBuffer});
+    return result.value.trim();
+}
+
 async function processNewFiles(rawFiles) {
     log('// читаємо файли...', '');
     const processed = [];
 
+    // Зверни увагу: .doc повернуто сюди, бо старий ворд нормально парсити без бекенду - це біль.
+    // Зате .docx та .pdf тепер працюють.
     const BINARY_EXTS = [
-        '.docx', '.doc', '.xlsx', '.xls', '.pptx', '.ppt',
-        '.pdf', '.zip', '.rar', '.7z', '.tar', '.gz',
+        '.doc', '.xlsx', '.xls', '.pptx', '.ppt',
+        '.zip', '.rar', '.7z', '.tar', '.gz',
         '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg',
         '.mp3', '.mp4', '.mov', '.avi', '.exe', '.dmg'
     ];
 
     for (const f of rawFiles) {
         const ext = '.' + f.name.split('.').pop().toLowerCase();
+
         if (BINARY_EXTS.includes(ext)) {
-            log(`// пропущено бінарний файл: ${f.name}`, 'err');
+            log(`// пропущено непідтримуваний файл: ${f.name}`, 'err');
             continue;
         }
+
         try {
-            const text = await f.text();
+            let text = '';
+            if (ext === '.pdf') {
+                log(`// парсимо PDF: ${f.name}...`, 'warn');
+                text = await extractPdfText(f);
+            } else if (ext === '.docx') {
+                log(`// парсимо DOCX: ${f.name}...`, 'warn');
+                text = await extractDocxText(f);
+            } else {
+                text = await f.text();
+            }
+
             processed.push({name: f.name, size: f.size, content: text});
         } catch (e) {
-            console.error("Помилка читання файлу:", f.name);
+            console.error("Помилка читання файлу:", f.name, e);
+            log(`// помилка при читанні ${f.name}`, 'err');
         }
     }
-    addProcessedFiles(processed);
+
+    if (processed.length > 0) {
+        addProcessedFiles(processed);
+    }
 }
 
 function addProcessedFiles(newFiles) {
@@ -430,6 +484,14 @@ function openModal(index) {
 
     document.getElementById('modal-title').textContent = file.name;
     contentArea.value = file.content;
+
+    contentArea.oninput = (e) => {
+        files[index].content = e.target.value;
+        files[index].size = new Blob([e.target.value]).size;
+        saveData();
+        render();
+    };
+
     modal.classList.add('active');
 }
 
@@ -437,6 +499,7 @@ function closeModal(e) {
     document.getElementById('file-modal').classList.remove('active');
     setTimeout(() => {
         document.getElementById('modal-content').value = '';
+        document.getElementById('modal-content').oninput = null;
     }, 200);
 }
 
@@ -507,10 +570,16 @@ async function generate() {
         const result = parts.join(gap);
 
         const blob = new Blob([result], {type: 'text/plain;charset=utf-8'});
-        downloadBlob(blob, outname);
 
-        const [sz, unit] = fmtSize(new Blob([result]).size);
-        log(`// готово! ${files.length} файлів → ${outname} (${sz} ${unit})`, 'ok');
+        const isSaved = await downloadBlob(blob, outname);
+
+        if (isSaved) {
+            const [sz, unit] = fmtSize(blob.size);
+            log(`// готово! ${files.length} файлів → ${outname} (${sz} ${unit})`, 'ok');
+        } else {
+            log('// збереження скасовано або перервано', 'warn');
+        }
+
     } catch (e) {
         log('// помилка: ' + e.message, 'err');
     }
@@ -521,13 +590,33 @@ async function generate() {
     }, 2000);
 }
 
-function downloadBlob(blob, filename) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+async function downloadBlob(blob, filename) {
+    if (window.showSaveFilePicker) {
+        try {
+            const handle = await window.showSaveFilePicker({
+                suggestedName: filename,
+                types: [{
+                    description: 'Text Document',
+                    accept: { 'text/plain': ['.txt'] },
+                }],
+            });
+            const writable = await handle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            return true;
+        } catch (err) {
+            if (err.name !== 'AbortError') console.error('Save error:', err);
+            return false;
+        }
+    } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        return true;
+    }
 }
